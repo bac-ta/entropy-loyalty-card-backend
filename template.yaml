@@ -30,6 +30,19 @@ Parameters:
     Type: String
     Description: S3 store
     Default: "entropy-s3-store"
+  ProvisionedConcurrency:
+    Type: Number
+    Description: Number of provisioned concurrency for lambda
+    AllowedValues:
+      - 1
+      - 2
+      - 4
+      - 10
+      - 20
+      - 30
+      - 40
+      - 50
+      - 60
 Resources:
   BackendApi:
     Type: AWS::Serverless::Api

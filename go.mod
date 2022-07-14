@@ -1,2 +1,2 @@
-module github.com/beego/beego/v2
+module entropy-loyalty-card-backend
 go 1.18
