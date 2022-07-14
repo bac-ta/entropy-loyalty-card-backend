@@ -1,0 +1,109 @@
+Resources:
+  Create:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: user-create
+      CodeUri: src/handlers/user-create
+      Policies:
+        - AWSLambdaExecute
+        - Version: '2012-10-17' 
+          Statement:
+            - Effect: Allow
+              Action:
+                - dynamodb:UpdateItem
+              Resource: !GetAtt userTable.Arn
+      Events:
+        ApiEvent:
+          Type: Api
+          Properties:
+            Path: /users
+            Method: post
+            RestApiId: !Ref UserAPI
+  FindMany:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: user-find-many
+      CodeUri: src/handlers/user-find-many
+      Policies:
+        - AWSLambdaExecute
+        - Version: '2012-10-17' 
+          Statement:
+            - Effect: Allow
+              Action:
+                - dynamodb:Scan
+              Resource: !GetAtt userTable.Arn
+      Events:
+        ApiEvent:
+          Type: Api
+          Properties:
+            Path: /users
+            Method: get
+            RestApiId: !Ref UserAPI
+  FindOne:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: user-find-one
+      CodeUri: src/handlers/user-find-one
+      Policies:
+        - AWSLambdaExecute
+        - Version: '2012-10-17' 
+          Statement:
+            - Effect: Allow
+              Action:
+                - dynamodb:Query
+              Resource: !GetAtt userTable.Arn
+      Events:
+        ApiEvent:
+          Type: Api
+          Properties:
+            Path: /users/{id}
+            Method: get
+            RestApiId: !Ref UserAPI
+            RequestParameters:
+              - method.request.path.id
+  Update:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: user-update
+      CodeUri: src/handlers/user-update
+      Policies:
+        - AWSLambdaExecute
+        - Version: '2012-10-17' 
+          Statement:
+            - Effect: Allow
+              Action:
+                - dynamodb:UpdateItem
+                - dynamodb:Query
+              Resource: !GetAtt userTable.Arn
+      Events:
+        ApiEvent:
+          Type: Api
+          Properties:
+            Path: /users/{id}
+            Method: put
+            RestApiId: !Ref UserAPI
+            RequestParameters:
+              - method.request.path.id
+  Delete:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: user-delete
+      CodeUri: src/handlers/user-delete
+      Policies:
+        - AWSLambdaExecute
+        - Version: '2012-10-17' 
+          Statement:
+            - Effect: Allow
+              Action:
+                - dynamodb:DeleteItem
+                - dynamodb:Query
+              Resource: !GetAtt userTable.Arn
+      Events:
+        ApiEvent:
+          Type: Api
+          Properties:
+            Path: /users/{id}
+            Method: delete
+            RestApiId: !Ref UserAPI
+            RequestParameters:
+              - method.request.path.id
