@@ -1,0 +1,143 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Transform: AWS::Serverless-2016-10-31
+Description: >
+  entropy loyalty card back end
+
+# More info about Globals: https://github.com/awslabs/serverless-application-model/blob/master/docs/globals.rst
+Globals:
+  Function:
+    Runtime: "go1.x"
+    Timeout: 30
+    AutoPublishAlias: live # More info about Safe Deployments: https://github.com/awslabs/serverless-application-model/blob/master/docs/safe_lambda_deployments.rst
+  # Config API can send files
+  Api:
+    BinaryMediaTypes: [ '*~1*' ]
+Parameters:
+  DeploymentEnv:
+    Type: String
+    Default: local
+    AllowedValues:
+      - local
+      - dev
+      - staging
+      - prod
+    Description: The Lambda deployment environment
+  CorsAllowDomain:
+    Type: String
+    Description: Allow cors from domain
+    Default: "*"
+  S3BucketName:
+    Type: String
+    Description: S3 store
+    Default: "entropy-s3-store"
+Resources:
+  BackendApi:
+    Type: AWS::Serverless::Api
+    Properties:
+      StageName: !Ref DeploymentEnv
+      GatewayResponses:
+        DEFAULT_4xx:
+          ResponseParameters:
+            Headers:
+              Access-Control-Expose-Headers: "'*'"
+              Access-Control-Allow-Headers: "'*'"
+              Access-Control-Allow-Origin: !Sub "'*'"
+              Cache-Control: "'no-store'"
+              Content-Security-Policy: "'frame-ancestors 'none''"
+              Strict-Transport-Security: "'max-age=31536000; includeSubDomains'"
+              X-Content-Type-Options: "'nosniff'"
+              X-Frame-Options: "'DENY'"
+
+      # Auth:
+      #   DefaultAuthorizer: JWTLambdaTokenAuthorizer
+      #   Authorizers:
+      #     JWTLambdaTokenAuthorizer:
+      #       Identity:
+      #         Header: Authorization
+      #         ValidationExpression: ^[Bb]earer [-0-9a-zA-z\.]*$
+      #       FunctionArn: !Sub
+      #         - ${functionName}:live
+      #         - { functionName: !GetAtt JWTLambdaTokenAuthorizer.Arn }
+
+  BackendApiFunction:
+    Type: AWS::Serverless::Function # More info about Function Resource: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#awsserverlessfunction
+    Properties:
+      CodeUri: ./artifacts/BackendApi.zip
+      Timeout: 30
+      MemorySize: 2048
+      # DeploymentPreference:
+      #   Type: AllAtOnce
+      # ProvisionedConcurrencyConfig:
+      #   ProvisionedConcurrentExecutions: 0
+      Handler: BackendApi::BackendApi.Function::FunctionHandlerAsync
+      Environment: # More info about Env Vars: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#environment-object
+        Variables:
+          APP_ENV: !Ref DeploymentEnv
+      # VpcConfig:
+      #   SecurityGroupIds:
+      #     - !Ref LambdaSecurityGroupId
+      #   SubnetIds:
+      #     Fn::Split: [",", !Ref LambdaSubnetIds]
+      Policies:
+        - Statement:
+            - Sid: S3ReadObject
+              Effect: Allow
+              Action:
+                - s3:GetObject
+              Resource:
+                - Fn::Sub: "arn:aws:s3:::${S3BucketName}"
+                - Fn::Sub: "arn:aws:s3:::${S3BucketName}/*"
+      Events:
+        MemberAPI:
+          Type: Api # More info about API Event Source: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#api
+          Properties:
+            RestApiId:
+              Ref: BackendApi
+            Path: /{proxy+}
+            Method: any
+
+  # JWTLambdaTokenAuthorizer:
+  #   Type: AWS::Serverless::Function # More info about Function Resource: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#awsserverlessfunction
+  #   Properties:
+  #     CodeUri: ./artifacts/BackendApi.zip
+  #     ProvisionedConcurrencyConfig:
+  #       ProvisionedConcurrentExecutions: 5
+  #     DeploymentPreference:
+  #       Type: AllAtOnce
+  #     MemorySize: 1024
+  #     Handler: BackendApi::BackendApi.AuthorizerFunction::FunctionHandler
+  #     Environment: # More info about Env Vars: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#environment-object
+  #       Variables:
+  #         APP_ENV: !Ref DeploymentEnv
+  #     Policies:
+  #       - Statement:
+  #           - Sid: SSMDescribeParametersPolicy
+  #             Effect: Allow
+  #             Action:
+  #               - ssm:DescribeParameters
+  #               - ssm:GetParametersByPath
+  #             Resource:
+  #               - Fn::Sub: "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/Lambda/SettingAPIAuthorizer/${DeploymentEnv}/Settings"
+  #           - Sid: SSMGetParameterPolicy
+  #             Effect: Allow
+  #             Action:
+  #               - ssm:GetParameters
+  #               - ssm:GetParameter
+  #             Resource:
+  #               - Fn::Sub: "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/Lambda/SettingAPIAuthorizer/${DeploymentEnv}/Settings/*"
+
+Outputs:
+  BackendApiURL:
+    Description: "API Gateway endpoint URL for Prod environment for BackendApi Function"
+    Value:
+      Fn::Sub: "https://${BackendApi}.execute-api.${AWS::Region}.amazonaws.com/${DeploymentEnv}/proxy"
+
+  BackendApiFunctionArn:
+    Description: "BackendApi Lambda Function ARN"
+    Value:
+      Fn::GetAtt: BackendApiFunction.Arn
+
+  BackendApiFunctionIamRole:
+    Description: "Implicit IAM Role created for BackendApi function"
+    Value:
+      Fn::GetAtt: BackendApiFunctionRole.Arn

@@ -1,0 +1,916 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: Continuous Integration for member settings apis
+
+Parameters:
+  ProjectName:
+    Type: String
+    Description: The name of the project being built. This name will be used on a number of resources.
+    Default: member-settings-apis
+  SourceProvider:
+    Type: String
+    Default: CodeStarSourceConnection
+    Description: Source provider
+    AllowedValues:
+      - CodeStarSourceConnection
+  ConnectionArn:
+    Type: String
+    Description: The connection arn.
+    Default: arn:aws:codestar-connections:ap-southeast-2:356724879491:connection/ae225242-907f-4bed-abe9-b1ac2e97521e
+  FullRepositoryId:
+    Type: String
+    Description: Provider repo owner.
+    Default: studio-anon/cr-settings-api
+    AllowedValues:
+      - studio-anon/cr-settings-api
+      - ShopGoDev/member-settings-apis
+  GitBranch:
+    Type: String
+    Description: Git branch to build off of.
+    Default: master
+  EnvName:
+    Type: String
+    Description: Environment Name
+    Default: dev
+    AllowedValues:
+      - dev
+      - test
+      - staging
+      - prod
+  ProvisionedConcurrency:
+    Type: Number
+    Description: Number of provisioned concurrency for Angular Universal Lambda
+    AllowedValues:
+      - 1
+      - 2
+      - 4
+      - 10
+      - 20
+      - 30
+      - 40
+      - 50
+      - 60
+  LambdaSubnetIds:
+    Type: List<AWS::EC2::Subnet::Id>
+    Description: Lambda subnet ids
+  LambdaSecurityGroupId:
+    Type: AWS::EC2::SecurityGroup::Id
+    Description: Lambda security id
+  CorsAllowDomain:
+    Type: String
+    Description: Allow cors from domain
+    Default: "*"
+  DbConnectionString:
+    Type: String
+    Description: The that's db connection string information
+    NoEcho: True
+  AzureAADClientId:
+    Type: String
+    Description: That's azure client id information
+    NoEcho: True
+  AzureAADClientSecret:
+    Type: String
+    Description: That's azure client secrect key
+    NoEcho: True
+  BsbBucketName:
+    Type: String
+    Description: The bucket name that store bsb codes.
+    Default: studioanon-bsb
+  BsbKey:
+    Type: String
+    Description: The bucket key is stored in bsb bucket name
+    Default: bsb.csv
+  AccountSId:
+    Type: String
+    Description: The account id of twilio - service send mobile otp code
+  AuthToken:
+    Type: String
+    Description: The account token of twilio - service send mobile otp code
+    NoEcho: True
+  PathServiceSId:
+    Type: String
+    Description: The path service id of twilio - service send mobile otp code
+  MinRedemptionAmount:
+    Type: Number
+    Description: The minimum of redemption amount
+    Default: 10.01
+  MaxRedemptionAmount:
+    Type: Number
+    Description: The maximum of redemption amount
+    Default: 5000
+  PaypalClientId:
+    Type: String
+    Description: The paypal client id information
+  PaypalClientSecret:
+    Type: String
+    Description: The paypal client secret information
+    NoEcho: True
+  PaypalTokenService:
+    Type: String
+    Description: The paypal token endpoint api
+    Default: https://api.sandbox.paypal.com/v1/oauth2/token
+  PaypalUserInfo:
+    Type: String
+    Description: The paypal token for user info endpoint api
+    Default: https://api.sandbox.paypal.com/v1/identity/oauth2/userinfo?schema=paypalv1.1
+  PaypalConnectUrlEndpoint:
+    Type: String
+    Description: The paypal connect url endpoint api
+    Default: https://www.sandbox.paypal.com/connect/
+  PaypalScope:
+    Type: String
+    Description: The paypal scope
+    Default: "openid email https://uri.paypal.com/services/paypalattributes"
+  MandrillApiEndpoint:
+    Type: String
+    Description: The email (mandrill) service endpoint api
+    Default: https://mandrillapp.com/api/1.0
+  MandrillKey:
+    Type: String
+    Description: The mandrill key
+    NoEcho: True
+  MandrillEmailVerificationTemplateId:
+    Type: String
+    Description: The email template id is for verification
+    Default: "cr-verification"
+  WebsiteDomainUrl:
+    Type: String
+    Description: The website domain
+    Default: https://cr.studioanon.co
+  MandrillEmailAfterWithdrawSuccessId:
+    Type: String
+    Description: The email template id is for sending after user withdraw successful
+    Default: "withdraw-success"
+  MandrillEmailOrphanMobileUpdateTemplateId:
+    Type: String
+    Description: The email template id is for update mobile
+    Default: "cr-orphan-mobile"
+  FeedbackToCustomerId:
+    Type: String
+    Description: The email template id for customer feedback
+    Default: "feedback-2-customer"
+  FeedbackToCashrewardsId:
+    Type: String
+    Description: The email template id for customer feedback to CR
+    Default: "feedback-2-cashrewards"
+  EmailFeedbackToCashrewards:
+    Type: String
+    Description: The email to send customer feedback to
+    Default: "app.feedback@cashrewards.com"
+  TopicArnMemberUpdatedEvent:
+    Type: String
+    Description: Member update sns topic arn
+    Default: "arn:aws:sns:ap-southeast-2:752830773963:Pangu_N_STG_MemberUpdate"
+  CognitoQueueARN:
+    Type: String
+    Description: Member update sqs url
+    Default: ""
+  StsTokenIssuerEndpoint:
+    Type: String
+    Description: The STS token issuer
+    Default: "https://test-sts.cashrewards.com.au/stg/.well-known/jwks"
+  CognitoTokenIssuerEndpoint:
+    Type: String
+    Description: The STS token issuer
+    Default: "https://cognito-idp.ap-southeast-2.amazonaws.com/ap-southeast-2_9q6TXai99/.well-known/jwks.json"
+  OtpWhitelist:
+    Type: String
+    Description: Whitelist mobile number to bypass otp check for testing. separate by comma
+    Default: "+61 xxxxxxxxx"
+  RedisMasters:
+    Type: String
+    Description: Redis Masters url
+    Default: "cluster.jbglup.clustercfg.apse2.cache.amazonaws.com"
+  LeanplumAppId:
+    Type: String
+    Description: Leanplum App ID
+    Default: "app_MIlKO1FHZ5tsrPjvekFmPIgQLW4MQYNbYaKZDqsQios"
+  LeanplumClientKey:
+    Type: String
+    Description: Leanplum Read-write API key
+    Default: "crw_WaMXPM8a1CJr8vNRX8XLwKGwREMbSk0kRHHUp7ybLBk"
+  SaltKey:
+    Type: String
+    Description: Salt used for verification of email links
+    Default: ""
+  FreshdeskApiKey:
+    Type: String
+    Description: Api key used for freshdesk ticket
+    Default: "iw7qir9yM528eNbpjDnq"
+  FreshdeskDomain:
+    Type: String
+    Description: Api domain used for freshdesk ticket
+    Default: "newaccount1620797046752"
+Resources:
+  # SSM parameters
+  StsTokenIssuerEndpointParameter:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: !Sub "/Lambda/SettingAPIAuthorizer/${EnvName}/Settings/StsTokenIssuerEndpoint"
+      Type: String
+      Value: !Ref StsTokenIssuerEndpoint
+      Description: STS token issuer well known endpoint
+      Tags:
+        Environment: !Ref EnvName
+        Project: !Ref ProjectName
+  CognitoTokenIssuerEndpointParameter:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: !Sub "/Lambda/SettingAPIAuthorizer/${EnvName}/Settings/CognitoTokenIssuerEndpoint"
+      Type: String
+      Value: !Ref CognitoTokenIssuerEndpoint
+      Description: Cognito token issuer well known endpoint
+      Tags:
+        Environment: !Ref EnvName
+        Project: !Ref ProjectName
+  CorsAllowDomainParameter:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: !Sub "/Lambda/SettingsAPI/${EnvName}/Settings/CorsAllowDomains"
+      Type: String
+      Value: !Ref CorsAllowDomain
+      Description: SSM Parameter for cors
+      Tags:
+        Environment: !Ref EnvName
+        Project: !Ref ProjectName
+  MandrillEmailOrphanMobileUpdateTemplateIdParameter:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: !Sub "/Lambda/SettingsAPI/${EnvName}/Settings/MandrillEmailOrphanMobileUpdateTemplateId"
+      Type: String
+      Value: !Ref MandrillEmailOrphanMobileUpdateTemplateId
+      Description: SSM Parameter to token issuer url
+      Tags:
+        Environment: !Ref EnvName
+        Project: !Ref ProjectName
+  OtpWhitelistParameter:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: !Sub "/Lambda/SettingsAPI/${EnvName}/Settings/OtpWhitelist"
+      Type: String
+      Value: !Ref OtpWhitelist
+      Description: Otp whitelist phone number
+      Tags:
+        Environment: !Ref EnvName
+        Project: !Ref ProjectName
+  DbConnectionStringParameter:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: !Sub "/Lambda/SettingsAPI/${EnvName}/Settings/DbConnectionString"
+      Type: String
+      Value: !Ref DbConnectionString
+      Description: SSM Parameter to store db connection string information
+      Tags:
+        Environment: !Ref EnvName
+        Project: !Ref ProjectName
+  AzureAADClientIdParameter:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: !Sub "/Lambda/SettingsAPI/${EnvName}/Settings/AzureAADClientId"
+      Type: String
+      Value: !Ref AzureAADClientId
+      Description: SSM Parameter to store azure client id
+      Tags:
+        Environment: !Ref EnvName
+        Project: !Ref ProjectName
+  AzureAADClientSecretParameter:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: !Sub "/Lambda/SettingsAPI/${EnvName}/Settings/AzureAADClientSecret"
+      Type: String
+      Value: !Ref AzureAADClientSecret
+      Description: SSM Parameter to store azure client id
+      Tags:
+        Environment: !Ref EnvName
+        Project: !Ref ProjectName
+  BsbBucketNameParameter:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: !Sub "/Lambda/SettingsAPI/${EnvName}/Settings/BsbBucketName"
+      Type: String
+      Value: !Ref BsbBucketName
+      Description: SSM Parameter to store bsb code for member settings
+      Tags:
+        Environment: !Ref EnvName
+        Project: !Ref ProjectName
+  BsbKeyParameter:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: !Sub "/Lambda/SettingsAPI/${EnvName}/Settings/BsbKey"
+      Type: String
+      Value: !Ref BsbKey
+      Description: SSM Parameter to store bsb key for member settings
+      Tags:
+        Environment: !Ref EnvName
+        Project: !Ref ProjectName
+  AccountSIdParameter:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: !Sub "/Lambda/SettingsAPI/${EnvName}/Settings/AccountSId"
+      Type: String
+      Value: !Ref AccountSId
+      Description: SSM Parameter to store twilio (service send mobile otp) account sid
+      Tags:
+        Environment: !Ref EnvName
+        Project: !Ref ProjectName
+  AuthTokenParameter:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: !Sub "/Lambda/SettingsAPI/${EnvName}/Settings/AuthToken"
+      Type: String
+      Value: !Ref AuthToken
+      Description: SSM Parameter to store twilio (service send mobile otp) authentication token
+      Tags:
+        Environment: !Ref EnvName
+        Project: !Ref ProjectName
+  PathServiceSIdParameter:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: !Sub "/Lambda/SettingsAPI/${EnvName}/Settings/PathServiceSId"
+      Type: String
+      Value: !Ref PathServiceSId
+      Description: SSM Parameter to store twilio (service send mobile otp) path service id
+      Tags:
+        Environment: !Ref EnvName
+        Project: !Ref ProjectName
+  MinRedemptionAmountParameter:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: !Sub "/Lambda/SettingsAPI/${EnvName}/Settings/MinRedemptionAmount"
+      Type: String
+      Value: !Ref MinRedemptionAmount
+      Description: SSM Parameter to store minimum of redemption amount
+      Tags:
+        Environment: !Ref EnvName
+        Project: !Ref ProjectName
+  MaxRedemptionAmountParameter:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: !Sub "/Lambda/SettingsAPI/${EnvName}/Settings/MaxRedemptionAmount"
+      Type: String
+      Value: !Ref MaxRedemptionAmount
+      Description: SSM Parameter to store maximum of redemption amount
+      Tags:
+        Environment: !Ref EnvName
+        Project: !Ref ProjectName
+  PaypalClientIdParameter:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: !Sub "/Lambda/SettingsAPI/${EnvName}/Settings/PaypalClientId"
+      Type: String
+      Value: !Ref PaypalClientId
+      Description: SSM Parameter to store paypal client id information
+      Tags:
+        Environment: !Ref EnvName
+        Project: !Ref ProjectName
+  PaypalClientSecretParameter:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: !Sub "/Lambda/SettingsAPI/${EnvName}/Settings/PaypalClientSecret"
+      Type: String
+      Value: !Ref PaypalClientSecret
+      Description: SSM Parameter to store paypal client secret information
+      Tags:
+        Environment: !Ref EnvName
+        Project: !Ref ProjectName
+  PaypalTokenServiceParameter:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: !Sub "/Lambda/SettingsAPI/${EnvName}/Settings/PaypalTokenService"
+      Type: String
+      Value: !Ref PaypalTokenService
+      Description: SSM Parameter to store paypal token service endpoint api
+      Tags:
+        Environment: !Ref EnvName
+        Project: !Ref ProjectName
+  PaypalUserInfoParameter:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: !Sub "/Lambda/SettingsAPI/${EnvName}/Settings/PaypalUserInfo"
+      Type: String
+      Value: !Ref PaypalUserInfo
+      Description: SSM Parameter to store paypal user info endpoint api
+      Tags:
+        Environment: !Ref EnvName
+        Project: !Ref ProjectName
+  PaypalConnectUrlEndpointParameter:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: !Sub "/Lambda/SettingsAPI/${EnvName}/Settings/PaypalConnectUrlEndpoint"
+      Type: String
+      Value: !Ref PaypalConnectUrlEndpoint
+      Description: SSM Parameter to store paypal connect url enpoint api
+      Tags:
+        Environment: !Ref EnvName
+        Project: !Ref ProjectName
+  PaypalScopeParameter:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: !Sub "/Lambda/SettingsAPI/${EnvName}/Settings/PaypalScope"
+      Type: String
+      Value: !Ref PaypalScope
+      Description: SSM Parameter to store paypal scope information
+      Tags:
+        Environment: !Ref EnvName
+        Project: !Ref ProjectName
+  MandrillApiEndpointParameter:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: !Sub "/Lambda/SettingsAPI/${EnvName}/Settings/MandrillApiEndpoint"
+      Type: String
+      Value: !Ref MandrillApiEndpoint
+      Description: SSM Parameter to store mandrill (mail service) api endpoint
+      Tags:
+        Environment: !Ref EnvName
+        Project: !Ref ProjectName
+  MandrillKeyParameter:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: !Sub "/Lambda/SettingsAPI/${EnvName}/Settings/MandrillKey"
+      Type: String
+      Value: !Ref MandrillKey
+      Description: SSM Parameter to store mandrill (mail service) key information
+      Tags:
+        Environment: !Ref EnvName
+        Project: !Ref ProjectName
+  MandrillEmailVerificationTemplateIdParameter:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: !Sub "/Lambda/SettingsAPI/${EnvName}/Settings/MandrillEmailVerificationTemplateId"
+      Type: String
+      Value: !Ref MandrillEmailVerificationTemplateId
+      Description: SSM Parameter to store mandrill (mail service) email template id is for verification
+      Tags:
+        Environment: !Ref EnvName
+        Project: !Ref ProjectName
+  WebsiteDomainUrlParameter:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: !Sub "/Lambda/SettingsAPI/${EnvName}/Settings/WebsiteDomainUrl"
+      Type: String
+      Value: !Ref WebsiteDomainUrl
+      Description: SSM Parameter to store website domain
+      Tags:
+        Environment: !Ref EnvName
+        Project: !Ref ProjectName
+  MandrillEmailAfterWithdrawSuccessIdParameter:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: !Sub "/Lambda/SettingsAPI/${EnvName}/Settings/MandrillEmailAfterWithdrawSuccessId"
+      Type: String
+      Value: !Ref MandrillEmailAfterWithdrawSuccessId
+      Description: SSM Parameter to store mandrill (mail service) email template id is for sending after user withdraw successful
+      Tags:
+        Environment: !Ref EnvName
+        Project: !Ref ProjectName
+  MandrillFeedbackToCustomerIdParameter:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: !Sub "/Lambda/SettingsAPI/${EnvName}/Settings/FeedbackToCustomerId"
+      Type: String
+      Value: !Ref FeedbackToCustomerId
+      Description: SSM Parameter to store mandrill (mail service) email template id is for sending confirmation customer feedback
+      Tags:
+        Environment: !Ref EnvName
+        Project: !Ref ProjectName
+  MandrillFeedbackToCashrewardsIdParameter:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: !Sub "/Lambda/SettingsAPI/${EnvName}/Settings/FeedbackToCashrewardsId"
+      Type: String
+      Value: !Ref FeedbackToCashrewardsId
+      Description: SSM Parameter to store mandrill (mail service) email template id is for sending customer feedback to cashrewards team
+      Tags:
+        Environment: !Ref EnvName
+        Project: !Ref ProjectName
+  MandrillEmailFeedbackToCashrewardsParameter:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: !Sub "/Lambda/SettingsAPI/${EnvName}/Settings/EmailFeedbackToCashrewards"
+      Type: String
+      Value: !Ref EmailFeedbackToCashrewards
+      Description: SSM Parameter to store email address to send feedback to
+      Tags:
+        Environment: !Ref EnvName
+        Project: !Ref ProjectName
+  TopicArnMemberUpdatedEventParameter:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: !Sub "/Lambda/SettingsAPI/${EnvName}/Settings/TopicArnMemberUpdatedEvent"
+      Type: String
+      Value: !Ref TopicArnMemberUpdatedEvent
+      Description: SSM Parameter to store sns arn to send update to Leanplum
+      Tags:
+        Environment: !Ref EnvName
+        Project: !Ref ProjectName
+  CognitoQueueNameParameter:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: !Sub "/Lambda/SettingsAPI/${EnvName}/Settings/CognitoQueueName"
+      Type: String
+      Value: !Select [5, !Split [":", !Ref CognitoQueueARN]]
+      Description: SSM Parameter to store sqs url to send update to cognito
+      Tags:
+        Environment: !Ref EnvName
+        Project: !Ref ProjectName
+  RedisMastersParameter:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: !Sub "/Lambda/SettingsAPI/${EnvName}/Settings/RedisMasters"
+      Type: String
+      Value: !Ref RedisMasters
+      Description: Redis Masters url
+      Tags:
+        Environment: !Ref EnvName
+        Project: !Ref ProjectName
+  LeanplumAppIdParameter:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: !Sub "/Lambda/SettingsAPI/${EnvName}/Settings/LeanplumAppId"
+      Type: String
+      Value: !Ref LeanplumAppId
+      Description: SSM Parameter to store paypal client secret information
+      Tags:
+        Environment: !Ref EnvName
+        Project: !Ref ProjectName
+  LeanplumClientKeyParameter:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: !Sub "/Lambda/SettingsAPI/${EnvName}/Settings/LeanplumClientKey"
+      Type: String
+      Value: !Ref LeanplumClientKey
+      Description: SSM Parameter to store the leanplum client key
+      Tags:
+        Environment: !Ref EnvName
+        Project: !Ref ProjectName
+  SaltKeyParameter:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: !Sub "/Lambda/SettingsAPI/${EnvName}/Settings/SaltKey"
+      Type: String
+      Value: !Ref SaltKey
+      Description: Salt used for verification of email links
+      Tags:
+        Environment: !Ref EnvName
+        Project: !Ref ProjectName
+
+  FreshdeskApiKeyParameter:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: !Sub "/Lambda/SettingsAPI/${EnvName}/Settings/FreshdeskApiKey"
+      Type: String
+      Value: !Ref FreshdeskApiKey
+      Description: Freshdesk api key parameter that uses by Freshdesk developer apis
+      Tags:
+        Environment: !Ref EnvName
+        Project: !Ref ProjectName
+
+  FreshdeskDomainParameter:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: !Sub "/Lambda/SettingsAPI/${EnvName}/Settings/FreshdeskDomain"
+      Type: String
+      Value: !Ref FreshdeskDomain
+      Description: Freshdesk domain parameter that uses by Freshdesk developer apis
+      Tags:
+        Environment: !Ref EnvName
+        Project: !Ref ProjectName
+
+  # S3 bucket where build artifacts go
+  DeploymentArtifactBucket:
+    Type: AWS::S3::Bucket
+    DeletionPolicy: Delete
+    Properties:
+      AccessControl: Private
+      VersioningConfiguration:
+        Status: Suspended
+
+  CodeBuildServiceRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Action:
+              - sts:AssumeRole
+            Principal:
+              Service:
+                - codebuild.amazonaws.com
+  CodeBuildServicePolicy:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyName: CodeBuildServicePolicy
+      Roles:
+        - !Ref CodeBuildServiceRole
+      PolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Action:
+              - logs:CreateLogGroup
+              - logs:CreateLogStream
+              - logs:PutLogEvents
+            Resource: "arn:aws:logs:*:*:*"
+          - Effect: Allow
+            Action:
+              - s3:GetObject
+              - s3:GetObjectVersion
+              - s3:PutObject
+            Resource:
+              - !Sub "arn:aws:s3:::codepipeline-${AWS::Region}-*/*"
+              - !Sub "arn:aws:s3:::${DeploymentArtifactBucket}/*"
+  CodeBuildProject:
+    Type: AWS::CodeBuild::Project
+    Properties:
+      Name: !Sub "${ProjectName}-${EnvName}"
+      ServiceRole: !GetAtt CodeBuildServiceRole.Arn
+      Artifacts:
+        Type: CODEPIPELINE
+      Environment:
+        Type: linuxContainer
+        ComputeType: BUILD_GENERAL1_SMALL
+        # Run `aws codebuild list-curated-environment-images` for a complete list of images provided.
+        Image: aws/codebuild/amazonlinux2-x86_64-standard:3.0
+        EnvironmentVariables:
+          - Name: BUILD_ARTIFACT_BUCKET
+            Value: !Ref DeploymentArtifactBucket
+          - Name: ENVIRONMENT
+            Value: !Ref EnvName
+      Source:
+        Type: CODEPIPELINE
+      TimeoutInMinutes: 20
+
+  # CodePipeline
+  CodePipelineServiceRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Action:
+              - sts:AssumeRole
+            Principal:
+              Service:
+                - codepipeline.amazonaws.com
+  CodePipelineServicePolicy:
+    # This policy orchestrates CloudFormation and CodeBuild.
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyName: CodePipelineServicePolicy
+      Roles:
+        - !Ref CodePipelineServiceRole
+      PolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Action:
+              - logs:CreateLogGroup
+              - logs:CreateLogStream
+              - logs:PutLogEvents
+            Resource: "arn:aws:logs:*:*:*"
+
+          - Effect: Allow
+            Action:
+              - s3:*
+            Resource:
+              - !Sub "arn:aws:s3:::${DeploymentArtifactBucket}/*"
+              - !Sub "arn:aws:s3:::codepipeline-${AWS::Region}-*/*"
+          - Effect: Allow
+            Action:
+              - cloudformation:CreateStack
+              - cloudformation:DescribeStacks
+              - cloudformation:DeleteStack
+              - cloudformation:UpdateStack
+              - cloudformation:CreateChangeSet
+              - cloudformation:ExecuteChangeSet
+              - cloudformation:DeleteChangeSet
+              - cloudformation:DescribeChangeSet
+              - cloudformation:ValidateTemplate
+            Resource: !Sub "arn:aws:cloudformation:${AWS::Region}:${AWS::AccountId}:stack/${ProjectName}-${EnvName}/*"
+          - Effect: Allow
+            Action:
+              - codebuild:BatchGetBuilds
+              - codebuild:StartBuild
+              - codebuild:StopBuild
+            Resource: !GetAtt CodeBuildProject.Arn
+          - Effect: Allow
+            Action:
+              - iam:PassRole
+            Resource: !GetAtt CloudFormationServiceRole.Arn
+          - Effect: Allow
+            Action:
+              - codestar-connections:*
+            Resource:
+              Fn::Sub: "arn:aws:codestar-connections:${AWS::Region}:${AWS::AccountId}:connection/*"
+  CloudFormationServiceRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Action:
+              - sts:AssumeRole
+            Principal:
+              Service:
+                - cloudformation.amazonaws.com
+  CloudFormationServicePolicy:
+    # This policy deloys the project's SAM template and needs permissions to create all services defined there.
+    # A number of common blocks are provided as examples.
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyName: CloudFormationServicePolicy
+      Roles:
+        - !Ref CloudFormationServiceRole
+      PolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Action:
+              - logs:CreateLogGroup
+              - logs:CreateLogStream
+              - logs:PutLogEvents
+            Resource: "arn:aws:logs:*:*:*"
+          - Effect: Allow
+            Action:
+              - cloudformation:CreateChangeSet
+              - cloudformation:ListChangeSets
+            Resource: !Sub "arn:aws:cloudformation:${AWS::Region}:aws:transform/*"
+          - Effect: Allow
+            Action:
+              - s3:GetObject
+            Resource:
+              - !Sub "arn:aws:s3:::codepipeline-${AWS::Region}-*/*"
+              - !Sub "arn:aws:s3:::${DeploymentArtifactBucket}/*"
+          - Effect: Allow
+            Action:
+              - iam:AttachRolePolicy
+              - iam:CreateRole
+              - iam:DeleteRole
+              - iam:DeleteRolePolicy
+              - iam:DetachRolePolicy
+              - iam:GetRole
+              - iam:PassRole
+              - iam:PutRolePolicy
+            Resource: !Sub "arn:aws:iam::${AWS::AccountId}:role/${ProjectName}-${EnvName}-*"
+          - Effect: Allow
+            Action:
+              - apigateway:GET
+              - apigateway:POST
+              - apigateway:PUT
+              - apigateway:PATCH
+              - apigateway:DELETE
+            Resource:
+              - arn:aws:apigateway:*::/restapis
+              - arn:aws:apigateway:*::/restapis/*
+              - arn:aws:apigateway:*::/apikeys/*
+          - Effect: Allow
+            Action:
+              - lambda:AddPermission
+              - lambda:CreateFunction
+              - lambda:DeleteFunction
+              - lambda:GetFunction
+              - lambda:GetFunctionConfiguration
+              - lambda:InvokeFunction
+              - lambda:RemovePermission
+              - lambda:TagResource
+              - lambda:UntagResource
+              - lambda:UpdateFunctionCode
+              - lambda:GetPolicy
+              - lambda:UpdateFunctionConfiguration
+              - lambda:PutProvisionedConcurrencyConfig
+              - lambda:GetProvisionedConcurrencyConfig
+              - lambda:ListVersionsByFunction
+              - lambda:CreateAlias
+              - lambda:PublishVersion
+              - lambda:DeleteFunctionConcurrency
+              - lambda:DeleteAlias
+              - lambda:GetAlias
+              - lambda:ListAliases
+              - lambda:UpdateAlias
+              - lambda:PutFunctionConcurrency
+            Resource: !Sub "arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:${ProjectName}-${EnvName}-*"
+          # This block is necessary for any event mapping
+          - Effect: Allow
+            Action:
+              - lambda:CreateEventSourceMapping
+              - lambda:DeleteEventSourceMapping
+              - lambda:GetEventSourceMapping
+            Resource: "*"
+          # Lambda tagging
+          - Effect: Allow
+            Action:
+              - lambda:ListTags
+              - lambda:TagResource
+              - lambda:UntagResource
+            Resource: "*"
+          # Private VPC
+          - Effect: Allow
+            Action:
+              - ec2:CreateNetworkInterface
+              - ec2:DescribeNetworkInterfaces
+              - ec2:DescribeSecurityGroups
+              - ec2:DeleteNetworkInterface
+              - ec2:DescribeSecurityGroupReferences
+              - ec2:DescribeVpcs
+              - ec2:DescribeSubnets
+            Resource: "*"
+          - Effect: Allow
+            Action:
+              - codedeploy:CreateApplication
+              - codedeploy:GetDeployment
+              - codedeploy:GetApplicationRevision
+              - codedeploy:CreateDeployment
+              - codedeploy:RegisterApplicationRevision
+              - codedeploy:GetDeploymentConfig
+              - codedeploy:GetDeploymentGroup
+              - codedeploy:UpdateDeploymentGroup
+              - codedeploy:CreateDeploymentGroup
+              - codedeploy:DeleteApplication
+            Resource:
+              - !Sub "arn:aws:codedeploy:${AWS::Region}:${AWS::AccountId}:application:member-settings-apis-*"
+              - !Sub "arn:aws:codedeploy:${AWS::Region}:${AWS::AccountId}:deploymentconfig:*"
+              - !Sub "arn:aws:codedeploy:${AWS::Region}:${AWS::AccountId}:deploymentgroup:*/*"
+
+
+  CodePipeline:
+    Type: AWS::CodePipeline::Pipeline
+    Properties:
+      RoleArn: !GetAtt CodePipelineServiceRole.Arn
+      Stages:
+        - Name: Source
+          Actions:
+            - Name: Source
+              ActionTypeId:
+                Category: Source
+                Owner: AWS
+                Version: 1
+                Provider: !Ref SourceProvider
+              OutputArtifacts:
+                - Name: SourceCodeOutputArtifact
+              Configuration:
+                ConnectionArn: !Ref ConnectionArn
+                FullRepositoryId: !Ref FullRepositoryId
+                BranchName: !Ref GitBranch
+              RunOrder: 1
+        - Name: Build
+          Actions:
+            - Name: CodeBuild
+              ActionTypeId:
+                Category: Build
+                Owner: AWS
+                Version: 1
+                Provider: CodeBuild
+              InputArtifacts:
+                - Name: SourceCodeOutputArtifact
+              OutputArtifacts:
+                - Name: BuildOutputArtifact
+              Configuration:
+                ProjectName: !Sub "${ProjectName}-${EnvName}"
+              RunOrder: 1
+        - Name: Release
+          Actions:
+            - Name: CreateChangeSet
+              ActionTypeId:
+                Category: Deploy
+                Owner: AWS
+                Version: 1
+                Provider: CloudFormation
+              InputArtifacts:
+                - Name: BuildOutputArtifact
+              Configuration:
+                ActionMode: CHANGE_SET_REPLACE
+                ChangeSetName: !Sub "${ProjectName}-${EnvName}"
+                RoleArn: !GetAtt CloudFormationServiceRole.Arn
+                Capabilities: CAPABILITY_IAM
+                StackName: !Sub "${ProjectName}-${EnvName}"
+                ParameterOverrides:
+                  Fn::Sub:
+                    - |
+                      {
+                        "DeploymentEnv": "${EnvName}",
+                        "LambdaSubnetIds": "${Subnets}",
+                        "CorsAllowDomain": "${CorsAllowDomain}",
+                        "LambdaSecurityGroupId": "${LambdaSecurityGroupId}",
+                        "TopicArnMemberUpdatedEvent": "${TopicArnMemberUpdatedEvent}",
+                        "CognitoQueueARN": "${CognitoQueueARN}"
+                      }
+                    - {Subnets: {Fn::Join: [ ",", !Ref LambdaSubnetIds ]}}
+                TemplatePath: BuildOutputArtifact::packaged.yaml
+              RunOrder: 1
+            - Name: ExecuteChangeSet
+              ActionTypeId:
+                Category: Deploy
+                Owner: AWS
+                Version: 1
+                Provider: CloudFormation
+              Configuration:
+                StackName: !Sub "${ProjectName}-${EnvName}"
+                ActionMode: CHANGE_SET_EXECUTE
+                ChangeSetName: !Sub "${ProjectName}-${EnvName}"
+              RunOrder: 2
+      ArtifactStore:
+        Type: S3
+        Location: !Ref DeploymentArtifactBucket
+      Name: !Sub "${ProjectName}-${EnvName}"
