@@ -3,7 +3,7 @@ Resources:
     Type: AWS::Serverless::Function
     Properties:
       Handler: user-create
-      CodeUri: src/handlers/user-create
+      CodeUri: src/controllers/user-create
       Policies:
         - AWSLambdaExecute
         - Version: '2012-10-17' 
@@ -23,7 +23,7 @@ Resources:
     Type: AWS::Serverless::Function
     Properties:
       Handler: user-find-many
-      CodeUri: src/handlers/user-find-many
+      CodeUri: src/controllers/user-find-many
       Policies:
         - AWSLambdaExecute
         - Version: '2012-10-17' 
@@ -43,7 +43,7 @@ Resources:
     Type: AWS::Serverless::Function
     Properties:
       Handler: user-find-one
-      CodeUri: src/handlers/user-find-one
+      CodeUri: src/controllers/user-find-one
       Policies:
         - AWSLambdaExecute
         - Version: '2012-10-17' 
@@ -65,7 +65,7 @@ Resources:
     Type: AWS::Serverless::Function
     Properties:
       Handler: user-update
-      CodeUri: src/handlers/user-update
+      CodeUri: src/controllers/user-update
       Policies:
         - AWSLambdaExecute
         - Version: '2012-10-17' 
@@ -88,7 +88,7 @@ Resources:
     Type: AWS::Serverless::Function
     Properties:
       Handler: user-delete
-      CodeUri: src/handlers/user-delete
+      CodeUri: src/controllers/user-delete
       Policies:
         - AWSLambdaExecute
         - Version: '2012-10-17' 
